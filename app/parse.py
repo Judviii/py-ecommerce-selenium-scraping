@@ -55,8 +55,8 @@ class Product:
 
 
 # Function to write a list of products to a CSV file
-def write_products_to_csv(products: list[Product], dwnl_path: str) -> None:
-    with open(dwnl_path, "w", newline="") as file:
+def write_products_to_csv(products: list[Product], dwnld_path: str) -> None:
+    with open(dwnld_path, "w", newline="") as file:
         writer = csv.writer(file)
         writer.writerow(PRODUCT_FIELDS)
         writer.writerows([astuple(product) for product in products])
@@ -81,7 +81,7 @@ def get_one_product(product_soup: BeautifulSoup) -> Product:
 
 # Function to handle dynamic content loading
 # (clicking "Load more" button with Selenium)
-def get_product_with_button(url: str) -> list[Product]:
+def get_full_page_with_dynamic_content(url: str) -> str:
     driver = get_driver()
     driver.get(url)
     time.sleep(5)  # Wait for content to load (and accept cookies)
@@ -92,11 +92,10 @@ def get_product_with_button(url: str) -> list[Product]:
             )
             more_button.click()
         except ElementNotInteractableException:
+            print(f"Load full page: {url} - complete.")
             break
-    html = driver.page_source
-    soup = BeautifulSoup(html, "html.parser")
-    products = soup.select(".product-wrapper")
-    return [get_one_product(product) for product in products]
+    full_page = driver.page_source
+    return full_page
 
 
 # Function to scrape products (either statically with requests
@@ -108,11 +107,12 @@ def get_products(url: str) -> list[Product]:
     # Check if the "Load more" button exists
     button_element = soup.select_one(".ecomerce-items-scroll-more")
 
-    if button_element is None:
-        products = soup.select(".product-wrapper")
-        return [get_one_product(product) for product in products]
+    if button_element is not None:
+        page = get_full_page_with_dynamic_content(url=url)
+        soup = BeautifulSoup(page, "html.parser")
 
-    return get_product_with_button(url=url)
+    products = soup.select(".product-wrapper")
+    return [get_one_product(product) for product in products]
 
 
 # Main function to loop through URLs, scrape products,
